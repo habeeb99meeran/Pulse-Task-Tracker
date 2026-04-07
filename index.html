@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pulse Task Tracker</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: contain;
+      background: #0b1020;
+      overflow-x: hidden;
+    }
+
+    .glass {
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .fade-up {
+      animation: fadeUp .32s ease-out;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    select option {
+      background: #111827;
+      color: #f8fafc;
+    }
+
+    input, select, textarea, button {
+      font: inherit;
+    }
+
+    select, input[type="date"], button {
+      min-height: 46px;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      opacity: 0.9;
+      cursor: pointer;
+    }
+
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148,163,184,.25);
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-track { background: transparent; }
+
+    @media (max-width: 768px) {
+      .mobile-page {
+        padding-bottom: calc(104px + env(safe-area-inset-bottom));
+      }
+
+      .mobile-nav {
+        padding-bottom: calc(12px + env(safe-area-inset-bottom));
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useEffect, useMemo, useRef, useState } = React;
+
+    const Icon = ({ name, size = 20, className = "" }) => {
+      const icons = {
+        sun: <path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364 6.364-1.414-1.414M8.05 8.05 6.636 6.636m11.728 0-1.414 1.414M8.05 15.95l-1.414 1.414M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z" />,
+        moon: <path d="M21 12.79A9 9 0 1 1 11.21 3c0 .34.02.67.05 1A7 7 0 0 0 20 12.74c.33.03.66.05 1 .05Z" />,
+        plus: <path d="M12 5v14M5 12h14" />,
+        x: <path d="M18 6 6 18M6 6l12 12" />,
+        check: <path d="m5 12 5 5L20 7" />,
+        trash: <path d="M3 6h18M8 6V4h8v2m-9 0v14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V6M10 11v6M14 11v6" />,
+        search: <path d="m21 21-4.35-4.35M18 10.5a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" />,
+        filter: <path d="M4 6h16M7 12h10M10 18h4" />,
+        download: <path d="M12 3v11m0 0 4-4m-4 4-4-4M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1" />,
+        upload: <path d="M12 21V10m0 0 4 4m-4-4-4 4M4 7V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1" />,
+        chart: <path d="M4 19V5m0 14h16M8 17V9m4 8V5m4 12v-6" />,
+        list: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />,
+        settings: <path d="M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm8 4-.88.51a7.97 7.97 0 0 1-.43 1.04l.5.9-1.41 1.41-.9-.5c-.33.18-.68.33-1.04.43L15 20h-2l-.51-.88a7.97 7.97 0 0 1-1.04-.43l-.9.5-1.41-1.41.5-.9a7.97 7.97 0 0 1-.43-1.04L4 15v-2l.88-.51c.1-.36.25-.71.43-1.04l-.5-.9 1.41-1.41.9.5c.33-.18.68-.33 1.04-.43L9 4h2l.51.88c.36.1.71.25 1.04.43l.9-.5 1.41 1.41-.5.9c.18.33.33.68.43 1.04L20 9v2Z" />,
+        calendar: <path d="M8 3v3M16 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1Z" />,
+        star: <path d="m12 3 2.7 5.47 6.03.88-4.36 4.25 1.03 6-5.4-2.84-5.4 2.84 1.03-6L3.27 9.35l6.03-.88L12 3Z" />,
+        archive: <path d="M3 7h18M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 11h6" />,
+        spark: <path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2Z" />,
+        clock: <path d="M12 7v5l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
+        target: <path d="M12 12m-8 0a8 8 0 1 0 16 0a8 8 0 1 0 -16 0M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0M12 2v2M22 12h-2M12 22v-2M2 12h2" />,
+        pin: <path d="m15 3 6 6-4 1-3 7-2-2 1-4-4-4 6-4Z" />
+      };
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={size} height={size} className={className}>
+          {icons[name] || null}
+        </svg>
+      );
+    };
+
+    const CATEGORIES = [
+      { id: 'work', label: 'Work', emoji: '💼' },
+      { id: 'personal', label: 'Personal', emoji: '👤' }
+    ];
+
+    const PRIORITIES = [
+      { id: 'low', label: 'Low' },
+      { id: 'medium', label: 'Medium' },
+      { id: 'high', label: 'High' },
+      { id: 'critical', label: 'Critical' }
+    ];
+
+    const STORAGE_KEY = 'pulse_task_tracker_v2';
+    const SETTINGS_KEY = 'pulse_task_tracker_settings_v2';
+
+    const defaultSettings = {
+      darkMode: true,
+      compactMode: false,
+      showCompleted: true,
+      accent: 'indigo'
+    };
+
+    const accentMap = {
+      indigo: {
+        solid: 'bg-indigo-600',
+        soft: 'bg-indigo-500/10',
+        text: 'text-indigo-400',
+        border: 'border-indigo-500/30',
+        ring: 'ring-indigo-500/30'
+      },
+      emerald: {
+        solid: 'bg-emerald-600',
+        soft: 'bg-emerald-500/10',
+        text: 'text-emerald-400',
+        border: 'border-emerald-500/30',
+        ring: 'ring-emerald-500/30'
+      },
+      rose: {
+        solid: 'bg-rose-600',
+        soft: 'bg-rose-500/10',
+        text: 'text-rose-400',
+        border: 'border-rose-500/30',
+        ring: 'ring-rose-500/30'
+      },
+      amber: {
+        solid: 'bg-amber-500',
+        soft: 'bg-amber-500/10',
+        text: 'text-amber-400',
+        border: 'border-amber-500/30',
+        ring: 'ring-amber-500/30'
+      }
+    };
+
+    const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+    const formatDate = (value) => {
+      if (!value) return 'No due date';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return 'No due date';
+      return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+
+    const isOverdue = (task) => task.dueDate && !task.completed && new Date(task.dueDate) < new Date(new Date().toDateString());
+    const isToday = (task) => {
+      if (!task.dueDate) return false;
+      const d = new Date(task.dueDate);
+      const now = new Date();
+      return d.toDateString() === now.toDateString();
+    };
+
+    function parseChecklist(text = '') {
+      const lines = text.split('\n');
+      const title = lines[0] || '';
+      const subItems = lines.slice(1).filter((l) => /^\[( |x)\]/i.test(l.trim()));
+      const completedCount = subItems.filter((l) => /^\[x\]/i.test(l.trim())).length;
+      return { title, subItems, total: subItems.length, completedCount };
+    }
+
+    function getPriorityTone(priority) {
+      if (priority === 'critical') return 'bg-rose-500 text-white';
+      if (priority === 'high') return 'bg-orange-500 text-white';
+      if (priority === 'medium') return 'bg-amber-400 text-slate-950';
+      return 'bg-slate-300 text-slate-900 dark:bg-slate-700 dark:text-slate-100';
+    }
+
+    function App() {
+      const [tasks, setTasks] = useState(() => {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return saved ? JSON.parse(saved) : [];
+      });
+
+      const [settings, setSettings] = useState(() => {
+        const saved = localStorage.getItem(SETTINGS_KEY);
+        return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+      });
+
+      const [view, setView] = useState('board');
+      const [search, setSearch] = useState('');
+      const [filterCategory, setFilterCategory] = useState('all');
+      const [filterPriority, setFilterPriority] = useState('all');
+      const [filterStatus, setFilterStatus] = useState('all');
+      const [sortBy, setSortBy] = useState('newest');
+      const [showAddModal, setShowAddModal] = useState(false);
+      const [editingId, setEditingId] = useState(null);
+      const [toast, setToast] = useState(null);
+      const [archive, setArchive] = useState([]);
+      const fileInputRef = useRef(null);
+
+      const [form, setForm] = useState({
+        title: '',
+        details: '',
+        category: 'work',
+        priority: 'medium',
+        dueDate: '',
+        pinned: false,
+        favorite: false
+      });
+
+      useEffect(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      }, [tasks]);
+
+      useEffect(() => {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      }, [settings]);
+
+      useEffect(() => {
+        if (!toast) return;
+        const t = setTimeout(() => setToast(null), 2500);
+        return () => clearTimeout(t);
+      }, [toast]);
+
+      const accent = accentMap[settings.accent] || accentMap.indigo;
+
+      const showToast = (message) => setToast(message);
+
+      const resetForm = () => {
+        setForm({
+          title: '',
+          details: '',
+          category: 'work',
+          priority: 'medium',
+          dueDate: '',
+          pinned: false,
+          favorite: false
+        });
+        setEditingId(null);
+      };
+
+      const openNewTask = () => {
+        resetForm();
+        setShowAddModal(true);
+      };
+
+      const openEditTask = (task) => {
+        const lines = task.text.split('\n');
+        setForm({
+          title: lines[0] || '',
+          details: lines.slice(1).join('\n'),
+          category: task.category,
+          priority: task.priority,
+          dueDate: task.dueDate || '',
+          pinned: !!task.pinned,
+          favorite: !!task.favorite
+        });
+        setEditingId(task.id);
+        setShowAddModal(true);
+      };
+
+      const saveTask = (e) => {
+        e.preventDefault();
+        if (!form.title.trim()) return;
+        const fullText = [form.title.trim(), form.details.trim()].filter(Boolean).join('\n');
+
+        if (editingId) {
+          setTasks((prev) => prev.map((task) => task.id === editingId ? {
+            ...task,
+            text: fullText,
+            category: form.category,
+            priority: form.priority,
+            dueDate: form.dueDate || '',
+            pinned: form.pinned,
+            favorite: form.favorite,
+            updatedAt: new Date().toISOString()
+          } : task));
+          showToast('Task updated');
+        } else {
+          const task = {
+            id: uid(),
+            text: fullText,
+            category: form.category,
+            priority: form.priority,
+            dueDate: form.dueDate || '',
+            pinned: form.pinned,
+            favorite: form.favorite,
+            completed: false,
+            archived: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            completedAt: null
+          };
+          setTasks((prev) => [task, ...prev]);
+          showToast('Task added');
+        }
+
+        setShowAddModal(false);
+        resetForm();
+      };
+
+      const toggleTask = (id) => {
+        setTasks((prev) => prev.map((task) => {
+          if (task.id !== id) return task;
+          const completed = !task.completed;
+          return {
+            ...task,
+            completed,
+            completedAt: completed ? new Date().toISOString() : null,
+            updatedAt: new Date().toISOString()
+          };
+        }));
+        showToast('Task status updated');
+      };
+
+      const deleteTask = (id) => {
+        setTasks((prev) => prev.filter((task) => task.id !== id));
+        showToast('Task deleted');
+      };
+
+      const archiveTask = (id) => {
+        const task = tasks.find((t) => t.id === id);
+        if (!task) return;
+        setArchive((prev) => [task, ...prev]);
+        setTasks((prev) => prev.filter((t) => t.id !== id));
+        showToast('Task archived');
+      };
+
+      const restoreArchived = (id) => {
+        const task = archive.find((a) => a.id === id);
+        if (!task) return;
+        setTasks((prev) => [{ ...task, updatedAt: new Date().toISOString() }, ...prev]);
+        setArchive((prev) => prev.filter((a) => a.id !== id));
+        showToast('Task restored');
+      };
+
+      const toggleFavorite = (id) => {
+        setTasks((prev) => prev.map((task) => task.id === id ? { ...task, favorite: !task.favorite, updatedAt: new Date().toISOString() } : task));
+      };
+
+      const togglePinned = (id) => {
+        setTasks((prev) => prev.map((task) => task.id === id ? { ...task, pinned: !task.pinned, updatedAt: new Date().toISOString() } : task));
+      };
+
+      const toggleSubItem = (taskId, label) => {
+        setTasks((prev) => prev.map((task) => {
+          if (task.id !== taskId) return task;
+          const lines = task.text.split('\n');
+          const updated = lines.map((line) => {
+            const clean = line.replace(/^\[( |x)\]\s*/i, '');
+            if (clean !== label) return line;
+            if (/^\[x\]/i.test(line)) return line.replace(/^\[x\]/i, '[ ]');
+            if (/^\[ \]/i.test(line)) return line.replace(/^\[ \]/i, '[x]');
+            return line;
+          });
+          return { ...task, text: updated.join('\n'), updatedAt: new Date().toISOString() };
+        }));
+      };
+
+      const exportJson = () => {
+        const payload = JSON.stringify(tasks, null, 2);
+        const blob = new Blob([payload], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'pulse-task-tracker-data.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('JSON exported');
+      };
+
+      const importJson = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const imported = JSON.parse(e.target.result);
+            if (!Array.isArray(imported)) throw new Error('Invalid format');
+            const valid = imported.filter((t) => t.id && t.text);
+            setTasks((prev) => {
+              const ids = new Set(prev.map((t) => t.id));
+              const fresh = valid.filter((t) => !ids.has(t.id));
+              return [...fresh, ...prev];
+            });
+            showToast(`Imported ${valid.length} task(s)`);
+          } catch {
+            showToast('Import failed');
+          }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+      };
+
+      const filteredTasks = useMemo(() => {
+        let list = [...tasks];
+
+        list = list.filter((task) => {
+          const text = task.text.toLowerCase();
+          const query = search.toLowerCase();
+          const matchesSearch = !query || text.includes(query);
+          const matchesCategory = filterCategory === 'all' || task.category === filterCategory;
+          const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
+          const matchesStatus = filterStatus === 'all'
+            || (filterStatus === 'completed' && task.completed)
+            || (filterStatus === 'active' && !task.completed)
+            || (filterStatus === 'overdue' && isOverdue(task))
+            || (filterStatus === 'today' && isToday(task))
+            || (filterStatus === 'favorite' && task.favorite);
+          const completedVisible = settings.showCompleted ? true : !task.completed;
+          return matchesSearch && matchesCategory && matchesPriority && matchesStatus && completedVisible;
+        });
+
+        list.sort((a, b) => {
+          if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+          if (sortBy === 'newest') return new Date(b.createdAt) - new Date(a.createdAt);
+          if (sortBy === 'oldest') return new Date(a.createdAt) - new Date(b.createdAt);
+          if (sortBy === 'dueSoon') {
+            if (!a.dueDate && !b.dueDate) return 0;
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return new Date(a.dueDate) - new Date(b.dueDate);
+          }
+          if (sortBy === 'priority') {
+            const rank = { critical: 4, high: 3, medium: 2, low: 1 };
+            return rank[b.priority] - rank[a.priority];
+          }
+          if (sortBy === 'alphabetical') {
+            return parseChecklist(a.text).title.localeCompare(parseChecklist(b.text).title);
+          }
+          return 0;
+        });
+
+        return list;
+      }, [tasks, search, filterCategory, filterPriority, filterStatus, sortBy, settings.showCompleted]);
+
+      const stats = useMemo(() => {
+        const total = tasks.length;
+        const completed = tasks.filter((t) => t.completed).length;
+        const active = total - completed;
+        const overdue = tasks.filter((t) => isOverdue(t)).length;
+        const favorites = tasks.filter((t) => t.favorite).length;
+        const completionRate = total ? Math.round((completed / total) * 100) : 0;
+
+        const completedTasks = tasks.filter((t) => t.completed && t.completedAt);
+        let avgTime = '0m';
+        if (completedTasks.length) {
+          const totalMins = completedTasks.reduce((sum, task) => sum + ((new Date(task.completedAt) - new Date(task.createdAt)) / 60000), 0);
+          const avgMins = Math.max(0, Math.round(totalMins / completedTasks.length));
+          avgTime = avgMins >= 60 ? `${Math.floor(avgMins / 60)}h ${avgMins % 60}m` : `${avgMins}m`;
+        }
+
+        const categoryBreakdown = CATEGORIES.map((cat) => ({
+          ...cat,
+          count: tasks.filter((t) => t.category === cat.id).length
+        }));
+
+        const dailyData = Array.from({ length: 7 }).map((_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const ds = d.toDateString();
+          return {
+            day: d.toLocaleDateString(undefined, { weekday: 'short' }),
+            created: tasks.filter((t) => new Date(t.createdAt).toDateString() === ds).length,
+            completed: tasks.filter((t) => t.completedAt && new Date(t.completedAt).toDateString() === ds).length
+          };
+        }).reverse();
+
+        return { total, completed, active, overdue, favorites, completionRate, avgTime, categoryBreakdown, dailyData };
+      }, [tasks]);
+
+      const boardGroups = useMemo(() => ({
+        overdue: filteredTasks.filter((t) => isOverdue(t)),
+        today: filteredTasks.filter((t) => isToday(t) && !isOverdue(t)),
+        upcoming: filteredTasks.filter((t) => !t.completed && !isOverdue(t) && !isToday(t)),
+        done: filteredTasks.filter((t) => t.completed)
+      }), [filteredTasks]);
+
+      const themeBg = settings.darkMode
+        ? 'bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.20),_transparent_30%),linear-gradient(180deg,#0b1020_0%,#0b1220_100%)] text-slate-100'
+        : 'bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.12),_transparent_26%),linear-gradient(180deg,#eef2ff_0%,#f8fafc_100%)] text-slate-900';
+
+      const cardBg = settings.darkMode
+        ? 'bg-white/5 border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.35)]'
+        : 'bg-white/80 border-slate-200/80 shadow-[0_18px_60px_rgba(15,23,42,0.10)]';
+
+      const muted = settings.darkMode ? 'text-slate-400' : 'text-slate-500';
+      const inputBg = settings.darkMode ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400';
+
+      const TaskCard = ({ task }) => {
+        const { title, subItems, total, completedCount } = parseChecklist(task.text);
+        const percent = total ? Math.round((completedCount / total) * 100) : 0;
+        const category = CATEGORIES.find((c) => c.id === task.category);
+
+        return (
+          <div className={`rounded-3xl border p-4 md:p-5 glass ${cardBg} fade-up ${task.completed ? 'opacity-70' : ''}`}>
+            <div className="flex items-start gap-3">
+              <button
+                onClick={() => toggleTask(task.id)}
+                className={`mt-1 h-6 w-6 shrink-0 rounded-lg border flex items-center justify-center transition ${task.completed ? `${accent.solid} border-transparent text-white` : settings.darkMode ? 'border-white/20 hover:border-white/40' : 'border-slate-300 hover:border-slate-400'}`}
+              >
+                {task.completed && <Icon name="check" size={14} />}
+              </button>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      {task.pinned && <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${accent.soft} ${accent.text}`}><Icon name="pin" size={12} /> Pinned</span>}
+                      {task.favorite && <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-amber-400/15 text-amber-300"><Icon name="star" size={12} /> Favorite</span>}
+                      {isOverdue(task) && <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-rose-500/15 text-rose-300">Overdue</span>}
+                      {isToday(task) && !task.completed && <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-sky-500/15 text-sky-300">Today</span>}
+                    </div>
+                    <h3 className={`text-base md:text-lg font-bold leading-snug ${task.completed ? 'line-through text-slate-400' : ''}`}>{title}</h3>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => toggleFavorite(task.id)} className={`rounded-xl p-2 ${settings.darkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'} ${task.favorite ? 'text-amber-400' : muted}`}><Icon name="star" size={16} /></button>
+                    <button onClick={() => togglePinned(task.id)} className={`rounded-xl p-2 ${settings.darkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'} ${task.pinned ? accent.text : muted}`}><Icon name="pin" size={16} /></button>
+                    <button onClick={() => openEditTask(task)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${settings.darkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}>Edit</button>
+                    <button onClick={() => archiveTask(task.id)} className={`rounded-xl p-2 ${settings.darkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'} ${muted}`}><Icon name="archive" size={16} /></button>
+                    <button onClick={() => deleteTask(task.id)} className="rounded-xl p-2 text-rose-400 hover:bg-rose-500/10"><Icon name="trash" size={16} /></button>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                  <span className={`rounded-full px-3 py-1 font-semibold ${settings.darkMode ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>{category?.emoji} {category?.label}</span>
+                  <span className={`rounded-full px-3 py-1 font-semibold ${getPriorityTone(task.priority)}`}>{task.priority}</span>
+                  <span className={`rounded-full px-3 py-1 font-semibold ${settings.darkMode ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-700'}`}><Icon name="calendar" size={12} className="inline mr-1" /> {formatDate(task.dueDate)}</span>
+                </div>
+
+                {subItems.length > 0 && (
+                  <div className="mt-4 rounded-2xl border border-white/10 bg-black/10 p-3">
+                    <div className="mb-3 flex items-center justify-between text-xs">
+                      <span className={muted}>{completedCount}/{total} checklist items</span>
+                      <span className={accent.text}>{percent}%</span>
+                    </div>
+                    <div className={`mb-3 h-2 overflow-hidden rounded-full ${settings.darkMode ? 'bg-white/10' : 'bg-slate-200'}`}>
+                      <div className={`h-full rounded-full ${accent.solid}`} style={{ width: `${percent}%` }} />
+                    </div>
+                    <div className="space-y-2">
+                      {subItems.map((item, idx) => {
+                        const done = /^\[x\]/i.test(item.trim());
+                        const label = item.replace(/^\[( |x)\]\s*/i, '');
+                        return (
+                          <button key={idx} onClick={() => toggleSubItem(task.id, label)} className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition ${settings.darkMode ? 'hover:bg-white/5' : 'hover:bg-white'} ${done ? 'opacity-60' : ''}`}>
+                            <span className={`flex h-5 w-5 items-center justify-center rounded-md border ${done ? `${accent.solid} border-transparent text-white` : settings.darkMode ? 'border-white/20' : 'border-slate-300'}`}>
+                              {done && <Icon name="check" size={12} />}
+                            </span>
+                            <span className={`text-sm ${done ? 'line-through' : ''}`}>{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className={`mt-4 flex flex-wrap items-center justify-between gap-3 text-xs ${muted}`}>
+                  <span><Icon name="clock" size={12} className="inline mr-1" /> Created {new Date(task.createdAt).toLocaleDateString()}</span>
+                  {task.updatedAt && <span>Updated {new Date(task.updatedAt).toLocaleDateString()}</span>}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const StatCard = ({ label, value, icon, extra }) => (
+        <div className={`rounded-3xl border p-4 sm:p-5 glass ${cardBg}`}>
+          <div className="mb-5 flex items-center justify-between">
+            <div className={`rounded-2xl p-3 ${accent.soft} ${accent.text}`}><Icon name={icon} size={18} /></div>
+            {extra ? <span className={`text-xs font-semibold ${muted}`}>{extra}</span> : null}
+          </div>
+          <div className="text-3xl font-extrabold tracking-tight">{value}</div>
+          <div className={`mt-1 text-sm ${muted}`}>{label}</div>
+        </div>
+      );
+
+      return (
+        <div className={`min-h-screen ${themeBg} transition-colors duration-300 mobile-page`}>
+          <div className="mx-auto max-w-7xl px-3 pb-24 pt-4 sm:px-4 md:px-6 md:pb-28 md:pt-6 lg:px-8">
+            <header className="mb-4 grid gap-4 lg:mb-6 lg:grid-cols-[1.3fr,0.7fr]">
+              <div className={`rounded-[24px] border p-4 sm:p-5 md:rounded-[28px] md:p-8 glass ${cardBg}`}>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <div className={`mb-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${accent.soft} ${accent.text}`}>
+                      <Icon name="spark" size={14} /> Modern task tracker
+                    </div>
+                    <h1 className="text-3xl font-extrabold tracking-tight md:text-5xl">Pulse Task Tracker</h1>
+                    <p className={`mt-3 max-w-2xl text-sm md:text-base ${muted}`}>
+                      A modern productivity dashboard with checklist tasks, categories, priorities, due dates, local storage, JSON import/export, analytics, dark mode, list and board views, favorites, pinning, archive, and quick filters.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setSettings((s) => ({ ...s, darkMode: !s.darkMode }))} className={`rounded-2xl border p-3 ${settings.darkMode ? 'border-white/10 bg-white/5 text-amber-300' : 'border-slate-200 bg-white text-slate-700'}`}>
+                      <Icon name={settings.darkMode ? 'sun' : 'moon'} size={18} />
+                    </button>
+                    <button onClick={openNewTask} className={`rounded-2xl px-4 py-3 text-sm font-bold text-white shadow-lg ${accent.solid}`}>
+                      <span className="inline-flex items-center gap-2"><Icon name="plus" size={16} /> New Task</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                  <StatCard label="Total tasks" value={stats.total} icon="list" />
+                  <StatCard label="Completed" value={stats.completed} icon="target" extra={`${stats.completionRate}%`} />
+                  <StatCard label="Overdue" value={stats.overdue} icon="calendar" />
+                  <StatCard label="Avg. completion time" value={stats.avgTime} icon="clock" />
+                </div>
+              </div>
+
+              <div className={`rounded-[28px] border p-6 glass ${cardBg}`}>
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">This week</div>
+                    <div className="mt-2 text-xl font-bold">Activity trend</div>
+                  </div>
+                  <Icon name="chart" size={20} className={accent.text} />
+                </div>
+                <div className="flex h-44 items-end gap-3">
+                  {stats.dailyData.map((d, i) => {
+                    const max = Math.max(...stats.dailyData.map((x) => Math.max(x.created, x.completed)), 1);
+                    const createdH = Math.max((d.created / max) * 100, d.created ? 8 : 0);
+                    const completedH = Math.max((d.completed / max) * 100, d.completed ? 8 : 0);
+                    return (
+                      <div key={i} className="flex flex-1 flex-col items-center gap-3">
+                        <div className="flex h-full w-full items-end justify-center gap-1">
+                          <div className={`w-3 rounded-full ${settings.darkMode ? 'bg-white/10' : 'bg-slate-200'}`} style={{ height: '100%' }}>
+                            <div className={`w-3 rounded-full ${accent.solid}`} style={{ height: `${createdH}%`, marginTop: `calc(100% - ${createdH}%)` }} />
+                          </div>
+                          <div className="w-3 rounded-full bg-emerald-500/25" style={{ height: '100%' }}>
+                            <div className="w-3 rounded-full bg-emerald-500" style={{ height: `${completedH}%`, marginTop: `calc(100% - ${completedH}%)` }} />
+                          </div>
+                        </div>
+                        <div className={`text-xs ${muted}`}>{d.day}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </header>
+
+            <section className={`mb-4 rounded-[24px] border p-3 sm:p-4 md:mb-6 md:rounded-[28px] md:p-5 glass ${cardBg}`}>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1.5fr_repeat(4,0.7fr)_0.8fr]">
+                <div className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${inputBg}`}>
+                  <Icon name="search" size={18} className={muted} />
+                  <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks, checklist items, keywords..." className="w-full bg-transparent text-sm outline-none" />
+                </div>
+
+                <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className={`rounded-2xl border px-4 py-3 text-sm outline-none ${inputBg}`}>
+                  <option value="all">All categories</option>
+                  {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                </select>
+
+                <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)} className={`rounded-2xl border px-4 py-3 text-sm outline-none ${inputBg}`}>
+                  <option value="all">All priorities</option>
+                  {PRIORITIES.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                </select>
+
+                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={`rounded-2xl border px-4 py-3 text-sm outline-none ${inputBg}`}>
+                  <option value="all">All status</option>
+                  <option value="active">Active</option>
+                  <option value="completed">Completed</option>
+                  <option value="today">Due today</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="favorite">Favorites</option>
+                </select>
+
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className={`rounded-2xl border px-4 py-3 text-sm outline-none ${inputBg}`}>
+                  <option value="newest">Newest</option>
+                  <option value="oldest">Oldest</option>
+                  <option value="dueSoon">Due soon</option>
+                  <option value="priority">Priority</option>
+                  <option value="alphabetical">A-Z</option>
+                </select>
+
+                <div className="grid grid-cols-2 gap-2 md:flex md:items-center md:justify-end">
+                  <button onClick={() => setView('board')} className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${view === 'board' ? `${accent.soft} ${accent.text} ${accent.border}` : inputBg}`}>
+                    Board
+                  </button>
+                  <button onClick={() => setView('list')} className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${view === 'list' ? `${accent.soft} ${accent.text} ${accent.border}` : inputBg}`}>
+                    List
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {view === 'board' ? (
+              <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {[
+                  { key: 'overdue', title: 'Overdue', items: boardGroups.overdue },
+                  { key: 'today', title: 'Today', items: boardGroups.today },
+                  { key: 'upcoming', title: 'Upcoming', items: boardGroups.upcoming },
+                  { key: 'done', title: 'Done', items: boardGroups.done }
+                ].map((group) => (
+                  <div key={group.key} className={`rounded-[24px] border p-4 glass ${cardBg}`}>
+                    <div className="mb-4 flex items-center justify-between">
+                      <h2 className="text-lg font-bold">{group.title}</h2>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${settings.darkMode ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>{group.items.length}</span>
+                    </div>
+                    <div className="space-y-4">
+                      {group.items.length ? group.items.map((task) => <TaskCard key={task.id} task={task} />) : (
+                        <div className={`rounded-3xl border border-dashed p-8 text-center text-sm ${muted}`}>No tasks here</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </section>
+            ) : (
+              <section className="space-y-4">
+                {filteredTasks.length ? filteredTasks.map((task) => <TaskCard key={task.id} task={task} />) : (
+                  <div className={`rounded-[28px] border p-12 text-center glass ${cardBg}`}>
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-white/5"><Icon name="search" size={24} className={muted} /></div>
+                    <div className="text-xl font-bold">No matching tasks found</div>
+                    <p className={`mt-2 text-sm ${muted}`}>Try adjusting filters or create a new task.</p>
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+
+          <button onClick={openNewTask} className={`fixed bottom-24 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-2xl md:bottom-8 md:right-8 ${accent.solid}`}>
+            <Icon name="plus" size={24} />
+          </button>
+
+          <nav className={`mobile-nav fixed bottom-0 left-0 right-0 z-50 border-t px-2 py-2 sm:px-4 sm:py-3 glass ${settings.darkMode ? 'border-white/10 bg-[#0b1020]/70' : 'border-slate-200 bg-white/80'}`}>
+            <div className="mx-auto grid max-w-7xl grid-cols-5 gap-2 sm:flex sm:items-center sm:justify-between sm:gap-3">
+              <button onClick={() => setView('board')} className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-2 py-3 text-[11px] font-semibold sm:px-4 sm:text-sm ${view === 'board' ? `${accent.soft} ${accent.text}` : muted}`}><Icon name="chart" size={16} /> Board</button>
+              <button onClick={() => setView('list')} className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-2 py-3 text-[11px] font-semibold sm:px-4 sm:text-sm ${view === 'list' ? `${accent.soft} ${accent.text}` : muted}`}><Icon name="list" size={16} /> List</button>
+              <button onClick={() => setShowAddModal(true)} className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-2 py-3 text-[11px] font-semibold sm:px-4 sm:text-sm ${accent.soft} ${accent.text}`}><Icon name="plus" size={16} /> Add</button>
+              <button onClick={exportJson} className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-2 py-3 text-[11px] font-semibold sm:px-4 sm:text-sm ${muted}`}><Icon name="download" size={16} /> Export</button>
+              <button onClick={() => fileInputRef.current?.click()} className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-2 py-3 text-[11px] font-semibold sm:px-4 sm:text-sm ${muted}`}><Icon name="upload" size={16} /> Import</button>
+              <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={importJson} />
+            </div>
+          </nav>
+
+          {showAddModal && (
+            <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/55 p-0 md:items-center md:p-6">
+              <div className={`w-full max-w-2xl rounded-t-[28px] border p-4 sm:p-5 md:rounded-[32px] md:p-8 glass ${cardBg}`}>
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <div className={`text-xs font-semibold uppercase tracking-[0.22em] ${muted}`}>{editingId ? 'Edit task' : 'Create task'}</div>
+                    <h2 className="mt-1 text-2xl font-extrabold">{editingId ? 'Update task details' : 'Add a new task'}</h2>
+                  </div>
+                  <button onClick={() => { setShowAddModal(false); resetForm(); }} className={`rounded-2xl p-3 ${settings.darkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}><Icon name="x" size={18} /></button>
+                </div>
+
+                <form onSubmit={saveTask} className="space-y-5">
+                  <div>
+                    <label className={`mb-2 block text-sm font-semibold ${muted}`}>Title</label>
+                    <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Monthly report follow-up" className={`w-full rounded-2xl border px-4 py-3 outline-none ${inputBg}`} />
+                  </div>
+
+                  <div>
+                    <label className={`mb-2 block text-sm font-semibold ${muted}`}>Details / checklist</label>
+                    <textarea value={form.details} onChange={(e) => setForm((f) => ({ ...f, details: e.target.value }))} rows="8" placeholder={'[ ] Review pending items\n[ ] Send email update\n[ ] Close tracker entry'} className={`w-full rounded-2xl border px-4 py-3 outline-none ${inputBg}`} />
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                    <div>
+                      <label className={`mb-2 block text-sm font-semibold ${muted}`}>Category</label>
+                      <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} className={`w-full rounded-2xl border px-4 py-3 outline-none ${inputBg}`}>
+                        {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`mb-2 block text-sm font-semibold ${muted}`}>Priority</label>
+                      <select value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))} className={`w-full rounded-2xl border px-4 py-3 outline-none ${inputBg}`}>
+                        {PRIORITIES.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`mb-2 block text-sm font-semibold ${muted}`}>Due date</label>
+                      <input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} className={`w-full rounded-2xl border px-4 py-3 outline-none ${inputBg}`} />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button type="button" onClick={() => setForm((f) => ({ ...f, pinned: !f.pinned }))} className={`rounded-2xl border px-4 py-3 text-left ${form.pinned ? `${accent.soft} ${accent.text} ${accent.border}` : inputBg}`}>
+                      <div className="font-semibold">Pin task</div>
+                      <div className={`mt-1 text-sm ${muted}`}>Keep important tasks at the top</div>
+                    </button>
+                    <button type="button" onClick={() => setForm((f) => ({ ...f, favorite: !f.favorite }))} className={`rounded-2xl border px-4 py-3 text-left ${form.favorite ? 'bg-amber-400/10 text-amber-300 border-amber-400/30' : inputBg}`}>
+                      <div className="font-semibold">Mark as favorite</div>
+                      <div className={`mt-1 text-sm ${muted}`}>Quick access through filters</div>
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+                    <button type="button" onClick={() => { setShowAddModal(false); resetForm(); }} className={`rounded-2xl border px-5 py-3 font-semibold ${inputBg}`}>Cancel</button>
+                    <button type="submit" className={`rounded-2xl px-5 py-3 font-bold text-white ${accent.solid}`}>{editingId ? 'Save changes' : 'Create task'}</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          <section className="mx-auto max-w-7xl px-3 pb-40 sm:px-4 md:px-6 lg:px-8">
+            <div className="mt-6 grid gap-6 lg:mt-8 lg:grid-cols-[1.2fr,0.8fr]">
+              <div className={`rounded-[28px] border p-6 glass ${cardBg}`}>
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <div className={`text-xs font-semibold uppercase tracking-[0.22em] ${muted}`}>Insights</div>
+                    <h3 className="mt-1 text-xl font-bold">Category workload</h3>
+                  </div>
+                  <Icon name="chart" size={18} className={accent.text} />
+                </div>
+                <div className="space-y-4">
+                  {stats.categoryBreakdown.map((cat) => {
+                    const width = stats.total ? Math.max((cat.count / stats.total) * 100, cat.count ? 8 : 0) : 0;
+                    return (
+                      <div key={cat.id}>
+                        <div className="mb-2 flex items-center justify-between text-sm">
+                          <span className="font-semibold">{cat.emoji} {cat.label}</span>
+                          <span className={muted}>{cat.count}</span>
+                        </div>
+                        <div className={`h-2.5 rounded-full ${settings.darkMode ? 'bg-white/10' : 'bg-slate-200'}`}>
+                          <div className={`h-2.5 rounded-full ${accent.solid}`} style={{ width: `${width}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className={`rounded-[28px] border p-6 glass ${cardBg}`}>
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <div className={`text-xs font-semibold uppercase tracking-[0.22em] ${muted}`}>Settings</div>
+                    <h3 className="mt-1 text-xl font-bold">Workspace preferences</h3>
+                  </div>
+                  <Icon name="settings" size={18} className={accent.text} />
+                </div>
+
+                <div className="space-y-3">
+                  <button onClick={() => setSettings((s) => ({ ...s, compactMode: !s.compactMode }))} className={`w-full rounded-2xl border px-4 py-3 text-left ${inputBg}`}>
+                    <div className="font-semibold">Compact mode</div>
+                    <div className={`mt-1 text-sm ${muted}`}>{settings.compactMode ? 'Enabled' : 'Disabled'}</div>
+                  </button>
+
+                  <button onClick={() => setSettings((s) => ({ ...s, showCompleted: !s.showCompleted }))} className={`w-full rounded-2xl border px-4 py-3 text-left ${inputBg}`}>
+                    <div className="font-semibold">Show completed tasks</div>
+                    <div className={`mt-1 text-sm ${muted}`}>{settings.showCompleted ? 'Visible in lists and board' : 'Hidden from current view'}</div>
+                  </button>
+
+                  <div className={`rounded-2xl border px-4 py-4 ${inputBg}`}>
+                    <div className="mb-3 font-semibold">Accent color</div>
+                    <div className="flex gap-2">
+                      {Object.keys(accentMap).map((key) => (
+                        <button key={key} onClick={() => setSettings((s) => ({ ...s, accent: key }))} className={`h-10 w-10 rounded-xl ring-2 ${settings.accent === key ? 'ring-white/70' : 'ring-transparent'} ${key === 'indigo' ? 'bg-indigo-500' : key === 'emerald' ? 'bg-emerald-500' : key === 'rose' ? 'bg-rose-500' : 'bg-amber-400'}`} />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className={`rounded-2xl border px-4 py-4 ${inputBg}`}>
+                    <div className="mb-3 flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold">Archived tasks</div>
+                        <div className={`mt-1 text-sm ${muted}`}>{archive.length} stored</div>
+                      </div>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-auto pr-1">
+                      {archive.length ? archive.map((task) => (
+                        <div key={task.id} className={`flex items-center justify-between rounded-2xl px-3 py-2 ${settings.darkMode ? 'bg-white/5' : 'bg-slate-50'}`}>
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold">{parseChecklist(task.text).title}</div>
+                            <div className={`text-xs ${muted}`}>{formatDate(task.dueDate)}</div>
+                          </div>
+                          <button onClick={() => restoreArchived(task.id)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${accent.soft} ${accent.text}`}>Restore</button>
+                        </div>
+                      )) : <div className={`text-sm ${muted}`}>No archived tasks</div>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {toast && (
+            <div className="fixed left-1/2 top-5 z-[90] -translate-x-1/2">
+              <div className={`rounded-2xl border px-4 py-3 text-sm font-semibold glass ${cardBg}`}>{toast}</div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
