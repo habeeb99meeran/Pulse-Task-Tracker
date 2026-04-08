@@ -49,6 +49,10 @@
       min-height: 46px;
     }
 
+    textarea {
+      resize: vertical;
+    }
+
     input[type="date"]::-webkit-calendar-picker-indicator {
       filter: invert(1);
       opacity: 0.9;
@@ -62,12 +66,33 @@
     }
     ::-webkit-scrollbar-track { background: transparent; }
 
+    .modal-scroll {
+      max-height: min(92vh, 860px);
+    }
+
+    .modal-body-scroll {
+      max-height: calc(min(92vh, 860px) - 108px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
     @media (max-width: 768px) {
       .mobile-page {
         padding-bottom: calc(104px + env(safe-area-inset-bottom));
       }
 
       .mobile-nav {
+        padding-bottom: calc(12px + env(safe-area-inset-bottom));
+      }
+
+      .modal-scroll {
+        max-height: 100dvh;
+        border-bottom-left-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+      }
+
+      .modal-body-scroll {
+        max-height: calc(100dvh - 96px);
         padding-bottom: calc(12px + env(safe-area-inset-bottom));
       }
     }
@@ -629,7 +654,7 @@
                 </div>
               </div>
 
-              <div className={`rounded-[28px] border p-6 glass ${cardBg}`}>
+              <div className={`rounded-[28px] border p-4 sm:p-5 md:p-6 glass ${cardBg}`}>
                 <div className="mb-4 flex items-center justify-between">
                   <div>
                     <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">This week</div>
@@ -755,58 +780,65 @@
           </nav>
 
           {showAddModal && (
-            <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/55 p-0 md:items-center md:p-6">
-              <div className={`w-full max-w-2xl rounded-t-[28px] border p-4 sm:p-5 md:rounded-[32px] md:p-8 glass ${cardBg}`}>
-                <div className="mb-6 flex items-center justify-between">
-                  <div>
+            <div className="fixed inset-0 z-[70] flex items-end justify-center overflow-y-auto bg-black/55 p-0 md:items-center md:p-6">
+              <div className={`modal-scroll flex w-full max-w-2xl flex-col rounded-t-[28px] border md:rounded-[32px] glass ${cardBg}`}>
+                <div className={`sticky top-0 z-10 flex items-center justify-between gap-3 border-b px-4 py-4 sm:px-5 md:px-8 ${settings.darkMode ? 'border-white/10 bg-[#0b1020]/75' : 'border-slate-200 bg-white/80'} glass`}>
+                  <div className="min-w-0">
                     <div className={`text-xs font-semibold uppercase tracking-[0.22em] ${muted}`}>{editingId ? 'Edit task' : 'Create task'}</div>
-                    <h2 className="mt-1 text-2xl font-extrabold">{editingId ? 'Update task details' : 'Add a new task'}</h2>
+                    <h2 className="mt-1 text-2xl font-extrabold leading-tight">{editingId ? 'Update task details' : 'Add a new task'}</h2>
                   </div>
-                  <button onClick={() => { setShowAddModal(false); resetForm(); }} className={`rounded-2xl p-3 ${settings.darkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}><Icon name="x" size={18} /></button>
+                  <button
+                    onClick={() => { setShowAddModal(false); resetForm(); }}
+                    className={`shrink-0 rounded-2xl p-3 ${settings.darkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}
+                  >
+                    <Icon name="x" size={18} />
+                  </button>
                 </div>
 
-                <form onSubmit={saveTask} className="space-y-5">
-                  <div>
-                    <label className={`mb-2 block text-sm font-semibold ${muted}`}>Title</label>
-                    <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Monthly report follow-up" className={`w-full rounded-2xl border px-4 py-3 outline-none ${inputBg}`} />
-                  </div>
-
-                  <div>
-                    <label className={`mb-2 block text-sm font-semibold ${muted}`}>Details / checklist</label>
-                    <textarea value={form.details} onChange={(e) => setForm((f) => ({ ...f, details: e.target.value }))} rows="8" placeholder={'[ ] Review pending items\n[ ] Send email update\n[ ] Close tracker entry'} className={`w-full rounded-2xl border px-4 py-3 outline-none ${inputBg}`} />
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                <form onSubmit={saveTask} className="modal-body-scroll px-4 pb-4 pt-4 sm:px-5 md:px-8 md:pb-6">
+                  <div className="space-y-5">
                     <div>
-                      <label className={`mb-2 block text-sm font-semibold ${muted}`}>Category</label>
-                      <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} className={`w-full rounded-2xl border px-4 py-3 outline-none ${inputBg}`}>
-                        {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-                      </select>
+                      <label className={`mb-2 block text-sm font-semibold ${muted}`}>Title</label>
+                      <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Monthly report follow-up" className={`w-full rounded-2xl border px-4 py-3 outline-none ${inputBg}`} />
                     </div>
+
                     <div>
-                      <label className={`mb-2 block text-sm font-semibold ${muted}`}>Priority</label>
-                      <select value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))} className={`w-full rounded-2xl border px-4 py-3 outline-none ${inputBg}`}>
-                        {PRIORITIES.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-                      </select>
+                      <label className={`mb-2 block text-sm font-semibold ${muted}`}>Details / checklist</label>
+                      <textarea value={form.details} onChange={(e) => setForm((f) => ({ ...f, details: e.target.value }))} rows="8" placeholder={'[ ] Review pending items\n[ ] Send email update\n[ ] Close tracker entry'} className={`w-full rounded-2xl border px-4 py-3 outline-none ${inputBg}`} />
                     </div>
-                    <div>
-                      <label className={`mb-2 block text-sm font-semibold ${muted}`}>Due date</label>
-                      <input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} className={`w-full rounded-2xl border px-4 py-3 outline-none ${inputBg}`} />
+
+                    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                      <div>
+                        <label className={`mb-2 block text-sm font-semibold ${muted}`}>Category</label>
+                        <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} className={`w-full rounded-2xl border px-4 py-3 outline-none ${inputBg}`}>
+                          {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={`mb-2 block text-sm font-semibold ${muted}`}>Priority</label>
+                        <select value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))} className={`w-full rounded-2xl border px-4 py-3 outline-none ${inputBg}`}>
+                          {PRIORITIES.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={`mb-2 block text-sm font-semibold ${muted}`}>Due date</label>
+                        <input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} className={`w-full rounded-2xl border px-4 py-3 outline-none ${inputBg}`} />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <button type="button" onClick={() => setForm((f) => ({ ...f, pinned: !f.pinned }))} className={`rounded-2xl border px-4 py-3 text-left ${form.pinned ? `${accent.soft} ${accent.text} ${accent.border}` : inputBg}`}>
+                        <div className="font-semibold">Pin task</div>
+                        <div className={`mt-1 text-sm ${muted}`}>Keep important tasks at the top</div>
+                      </button>
+                      <button type="button" onClick={() => setForm((f) => ({ ...f, favorite: !f.favorite }))} className={`rounded-2xl border px-4 py-3 text-left ${form.favorite ? 'bg-amber-400/10 text-amber-300 border-amber-400/30' : inputBg}`}>
+                        <div className="font-semibold">Mark as favorite</div>
+                        <div className={`mt-1 text-sm ${muted}`}>Quick access through filters</div>
+                      </button>
                     </div>
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <button type="button" onClick={() => setForm((f) => ({ ...f, pinned: !f.pinned }))} className={`rounded-2xl border px-4 py-3 text-left ${form.pinned ? `${accent.soft} ${accent.text} ${accent.border}` : inputBg}`}>
-                      <div className="font-semibold">Pin task</div>
-                      <div className={`mt-1 text-sm ${muted}`}>Keep important tasks at the top</div>
-                    </button>
-                    <button type="button" onClick={() => setForm((f) => ({ ...f, favorite: !f.favorite }))} className={`rounded-2xl border px-4 py-3 text-left ${form.favorite ? 'bg-amber-400/10 text-amber-300 border-amber-400/30' : inputBg}`}>
-                      <div className="font-semibold">Mark as favorite</div>
-                      <div className={`mt-1 text-sm ${muted}`}>Quick access through filters</div>
-                    </button>
-                  </div>
-
-                  <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+                  <div className={`sticky bottom-0 mt-5 flex flex-col-reverse gap-3 border-t pt-4 sm:flex-row sm:justify-end ${settings.darkMode ? 'border-white/10 bg-[#0b1020]/75' : 'border-slate-200 bg-white/80'} glass`}>
                     <button type="button" onClick={() => { setShowAddModal(false); resetForm(); }} className={`rounded-2xl border px-5 py-3 font-semibold ${inputBg}`}>Cancel</button>
                     <button type="submit" className={`rounded-2xl px-5 py-3 font-bold text-white ${accent.solid}`}>{editingId ? 'Save changes' : 'Create task'}</button>
                   </div>
